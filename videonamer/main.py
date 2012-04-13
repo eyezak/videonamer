@@ -223,10 +223,10 @@ def main():
 
     # If a config is specified, load it, update the defaults using the loaded
     # values, then reparse the options with the updated defaults.
-    default_configuration = os.path.expanduser("~/.movienamer.json")
+    default_configuration = os.path.expanduser("~/.videonamer.json")
 
     if opts.loadconfig is not None:
-        # Command line overrides loading ~/.movienamer.json
+        # Command line overrides loading ~/.videonamer.json
         configToLoad = opts.loadconfig
     elif os.path.isfile(default_configuration):
         # No --config arg, so load default config if it exists
