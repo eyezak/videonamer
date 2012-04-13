@@ -4,8 +4,14 @@
 """
 
 defaults = {
+    # Media type: tv or movie
+    'media_type': 'tv',
+
     # Select first series search result
     'select_first': False,
+    
+    # Maximum results to return for a search (passed to fuzzy-matcher)
+    'max_results': 15,
 
     # Always rename files
     'always_rename': False,
@@ -28,6 +34,12 @@ defaults = {
     # Recurse more than one level into folders. When False, only
     # desends one level.
     'recursive': False,
+    
+    # Library mode means directories are renamed like normal arguments
+    'library': False,
+    
+    # Library blacklist (for tv shows mostly)
+    'library_blacklist': [{ "is_regex": True, "match": "(?i)^(sample|subtitles|(part|disc|cd|dvd|bluray|season)[ \.+\-_]?[0-9]+)$" },],
 
     # When non-empty, only look for files with this extension.
     # No leading dot, for example: ['avi', 'mkv', 'mp4']
@@ -36,7 +48,9 @@ defaults = {
     # When non-empty, filter out filenames that match these expressions. Either simple
     # matches or regexs can be used. The following are near enough equivalent:
     # [{"is_regex": true, "match": ".*sample.*"}, {"is_regex": false, "match": "sample"}]
-    'filename_blacklist': [],
+    'filename_blacklist': [{ "is_regex": True, "match": 
+        "(?i)^(sample|english|french|dutch|german|italian|portuguese|portuguese-brazil|spanish|.*(cd|dvd|disc|case)[ \.+\-_]cover)$"
+    },],
 
     # Force Windows safe filenames (always True on Windows)
     'windows_safe_filenames': False,
@@ -53,7 +67,7 @@ defaults = {
     'custom_filename_character_blacklist': '',
 
     # Replacement characters for invalid filename characters
-    'replace_invalid_characters_with': '_',
+    'replace_invalid_characters_with': '',
 
     # Replacements performed on input file before parsing.
     'input_filename_replacements': [
@@ -77,11 +91,6 @@ defaults = {
     # Move renamed files to directory?
     'move_files_enable': False,
 
-    # Separate confirmation of moving or copying renamed file?  If
-    # False, will move files when renaming. In batch mode, will never
-    # prompt.
-    'move_files_confirmation': True,
-
     # If true, convert the variable/dynamic parts of the destination
     # to lower case. Does not affect the static parts; for example,
     # if move_files_destination is set to
@@ -89,29 +98,33 @@ defaults = {
     # then only the series name will be converted to lower case.
     'move_files_lowercase_destination': False,
 
-    # If True, the destination path includes the destination filename,
-    # for example: '/example/tv/%(seriesname)s/season %(seasonnumber)d/%(originalfilename)'
-    'move_files_destination_is_filepath': False,
-
     # Destination to move files to. Trailing slash is not necessary.
     # Use forward slashes, even on Windows. Realtive paths are realtive to
     # the existing file's path (not current working dir). A value of '.' will
     # not move the file anywhere.
-    #
+
+    'tv_destination': '.',
+    'movie_destination': '.',
+
     # Use Python's string formatting to add dynamic paths. Available variables:
     # - %(seriesname)s
     # - %(seasonnumber)d
     # - %(episodenumbers)s (Note: this is a string, formatted with config
     #                       variable episode_single and joined with episode_separator)
-    'move_files_destination': '.',
+    'tv_dirname': '%(seriesname)/Season %(seasonnumber)d',
 
-    # Same as above, only for date-numbered episodes. The following
-    # variables are available:
+    # Use Python's string formatting to add dynamic paths. Available variables:
     # - %(seriesname)s
     # - %(year)s
     # - %(month)s
     # - %(day)s
-    'move_files_destination_date': '.',
+    'tv_dirname_date': '%(seriesname)s/%(year)s',
+
+    # Use Python's string formatting to add dynamic paths. Available variables:
+    # - %(movietitle)s
+    # - %(releasedate)d
+    # - %(resolution)s 
+    'movie_dirname': '%(movietitle)s (%(releasedate)d)',
 
     # Force the move-files feature to always move the file.
     #
@@ -125,7 +138,7 @@ defaults = {
     'move_files_only': False,
 
     # Patterns to parse input filenames with
-    'filename_patterns': [
+    'tv_patterns': [
         # [group] Show - 01-02 [crc]
         '''^\[(?P<group>.+?)\][ ]?               # group name, captured for [#100]
         (?P<seriesname>.*?)[ ]?[-_][ ]?          # show name, padding, spaces?
@@ -152,6 +165,7 @@ defaults = {
         # foo s01e23 s01e24 s01e25 *
         '''
         ^((?P<seriesname>.+?)[ \._\-])?          # show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Ss](?P<seasonnumber>[0-9]+)             # s01
         [\.\- ]?                                 # separator
         [Ee](?P<episodenumberstart>[0-9]+)       # first e23
@@ -168,6 +182,7 @@ defaults = {
         # foo.s01e23e24*
         '''
         ^((?P<seriesname>.+?)[ \._\-])?          # show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Ss](?P<seasonnumber>[0-9]+)             # s01
         [\.\- ]?                                 # separator
         [Ee](?P<episodenumberstart>[0-9]+)       # first e23
@@ -179,6 +194,7 @@ defaults = {
         # foo.1x23 1x24 1x25
         '''
         ^((?P<seriesname>.+?)[ \._\-])?          # show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         (?P<seasonnumber>[0-9]+)                 # first season number (1)
         [xX](?P<episodenumberstart>[0-9]+)       # first episode (x23)
         ([ \._\-]+                               # separator
@@ -192,6 +208,7 @@ defaults = {
         # foo.1x23x24*
         '''
         ^((?P<seriesname>.+?)[ \._\-])?          # show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         (?P<seasonnumber>[0-9]+)                 # 1
         [xX](?P<episodenumberstart>[0-9]+)       # first x23
         ([xX][0-9]+)*                            # x24x25 etc
@@ -201,6 +218,7 @@ defaults = {
         # foo.s01e23-24*
         '''
         ^((?P<seriesname>.+?)[ \._\-])?          # show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Ss](?P<seasonnumber>[0-9]+)             # s01
         [\.\- ]?                                 # separator
         [Ee](?P<episodenumberstart>[0-9]+)       # first e23
@@ -216,6 +234,7 @@ defaults = {
         # foo.1x23-24*
         '''
         ^((?P<seriesname>.+?)[ \._\-])?          # show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         (?P<seasonnumber>[0-9]+)                 # 1
         [xX](?P<episodenumberstart>[0-9]+)       # first x23
         (                                        # -24 etc
@@ -229,6 +248,7 @@ defaults = {
 
         # foo.[1x09-11]*
         '''^(?P<seriesname>.+?)[ \._\-]          # show name and padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         \[                                       # [
             ?(?P<seasonnumber>[0-9]+)            # season
         [xX]                                     # x
@@ -241,12 +261,14 @@ defaults = {
 
         # foo - [012]
         '''^((?P<seriesname>.+?)[ \._\-])?       # show name and padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         \[                                       # [ not optional (or too ambigious)
         (?P<episodenumber>[0-9]+)                # episode
         \]                                       # ]
         [^\\/]*$''',
         # foo.s0101, foo.0201
         '''^(?P<seriesname>.+?)[ \._\-]
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ \._\-])?
         [Ss](?P<seasonnumber>[0-9]{2})
         [\.\- ]?
         (?P<episodenumber>[0-9]{2})
@@ -254,6 +276,7 @@ defaults = {
 
         # foo.1x09*
         '''^((?P<seriesname>.+?)[ \._\-])?       # show name and padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         \[?                                      # [ optional
         (?P<seasonnumber>[0-9]+)                 # season
         [xX]                                     # x
@@ -263,6 +286,7 @@ defaults = {
 
         # foo.s01.e01, foo.s01_e01, "foo.s01 - e01"
         '''^((?P<seriesname>.+?)[ \._\-])?
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         \[?
         [Ss](?P<seasonnumber>[0-9]+)[ ]?[\._\- ]?[ ]?
         [Ee]?(?P<episodenumber>[0-9]+)
@@ -282,6 +306,7 @@ defaults = {
         # foo - [01.09]
         '''^((?P<seriesname>.+?))                # show name
         [ \._\-]?                                # padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         \[                                       # [
         (?P<seasonnumber>[0-9]+?)                # season
         [.]                                      # .
@@ -292,12 +317,14 @@ defaults = {
 
         # Foo - S2 E 02 - etc
         '''^(?P<seriesname>.+?)[ ]?[ \._\-][ ]?
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Ss](?P<seasonnumber>[0-9]+)[\.\- ]?
         [Ee]?[ ]?(?P<episodenumber>[0-9]+)
         [^\\/]*$''',
 
         # Show - Episode 9999 [S 12 - Ep 131] - etc
         '''
+
         (?P<seriesname>.+)                       # Showname
         [ ]-[ ]                                  # -
         [Ee]pisode[ ]\d+                         # Episode 1234 (ignored)
@@ -313,6 +340,7 @@ defaults = {
         # show name 2 of 6 - blah
         '''^(?P<seriesname>.+?)                  # Show name
         [ \._\-]                                 # Padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         (?P<episodenumber>[0-9]+)                # 2
         of                                       # of
         [ \._\-]?                                # Padding
@@ -324,6 +352,7 @@ defaults = {
         '''^(?i)
         (?P<seriesname>.+?)                        # Show name
         [ \._\-]                                   # Padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         (?:part|pt)?[\._ -]
         (?P<episodenumberstart>[0-9]+)             # Part 1
         (?:
@@ -339,24 +368,28 @@ defaults = {
         # Show.Name.Part1
         '''^(?P<seriesname>.+?)                  # Show name\n
         [ \\._\\-]                               # Padding\n
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Pp]art[ ](?P<episodenumber>[0-9]+)      # Part 1\n
         [\\._ -][^\\/]*$                         # More padding, then anything\n
         ''',
 
         # show name Season 01 Episode 20
         '''^(?P<seriesname>.+?)[ ]?               # Show name
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Ss]eason[ ]?(?P<seasonnumber>[0-9]+)[ ]? # Season 1
         [Ee]pisode[ ]?(?P<episodenumber>[0-9]+)   # Episode 20
         [^\\/]*$''',                              # Anything
 
         # foo.103*
         '''^(?P<seriesname>.+)[ \._\-]
-        (?P<seasonnumber>[0-9]{1})
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
+        (?P<seasonnumber>[0-9]{1,2})
         (?P<episodenumber>[0-9]{2})
-        [\._ -][^\\/]*$''',
+        (?:[\._ -][^\\/]*)?$''',
 
         # foo.0103*
         '''^(?P<seriesname>.+)[ \._\-]
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         (?P<seasonnumber>[0-9]{2})
         (?P<episodenumber>[0-9]{2,3})
         [\._ -][^\\/]*$''',
@@ -364,72 +397,135 @@ defaults = {
         # show.name.e123.abc
         '''^(?P<seriesname>.+?)                  # Show name
         [ \._\-]                                 # Padding
+        (?:[\[\(]?(?P<year>[0-9]{4})[\]\)]?[ ]?[ \._\-][ ]?)?
         [Ee](?P<episodenumber>[0-9]+)            # E123
         [\._ -][^\\/]*$                          # More padding, then anything
         ''',
     ],
 
+    # Patterns to parse input files for movies
+    "movie_patterns": [
+	    '''^(?i)
+	    (?P<movietitle>.+)[ \.+\-_]                               # movie title
+	    (?P<rdsep>[\(\[])?                                        # padding
+	    (?P<releasedate>(?:20(?:0[0-9]|1[0-3])|1[0-9]{3}))          # releasedate
+	    (?(rdsep)[\)\]])[ \.+\-_]                               # padding
+	    (?P<rsep>[\(\[])?                                         # padding
+	    (?P<resolution>(?:240|320|480|576|720|1080|2304|2160)[ip])  # resolution
+	    (?(rsep)[\)\]])                                           # padding
+	    (?P<extra>[ \.+\-_]?.*)$                                  # extra
+	    ''',
+
+	    '''^(?i)
+	    (?P<movietitle>.+)[ \.+\-_]                               # movie title
+	    (?P<rdsep>[\(\[])?                                        # padding
+	    (?P<releasedate>(?:20(?:0[0-9]|1[0-3])|1[0-9]{3}))          # releasedate
+	    (?(rdsep)[\)\]])                                          # padding
+	    (?P<extra>[ \.+\-_]?.*)$                                  # extra
+	    ''',
+
+	    '''^(?i)
+	    (?P<movietitle>(?:.(?!unrated|special[ \.+\-_]edition|director'?s[ \.+\-_]cut))+)
+	    ([ \.+\-_]
+	    (?P<releasetype>unrated|special[ \.+\-_]edition|director'?s[ \.+\-_]cut))?
+	    [ \.+\-_]
+	    (?P<rsep>[\(\[])?
+	    (?P<resolution>(?:240|320|480|576|720|1080|2304|2160)[ip])
+	    (?(rsep)[\(\]])
+	    (?P<extra>[ \.+\-_]?.*)$
+	    ''',
+
+	    '''^(?i)
+	    (?P<movietitle>.+)
+	    (?:(?P<releasedate>(?:20(?:0[0-9]|1[0-3])|1[0-9]{3}))|
+	    (?P<resolution>(?:240|320|480|576|720|1080|2304|2160)[ip]))$
+	    ''',
+
+	    '''^(?i)
+	    (?P<movietitle>.+?)
+	    (?P<extra>[ \.+\-_]
+	    (?:bluray|[Bb][RrDd][Rr][Ii][Pp]|[Dd][Vv][Dd][ \\.+\\-_]?[Rr][Ii][Pp]|[hHxX]264|[Xx][Vv][Ii][Dd]|[Dd][Ii][Vv][Xx]|cd[0-9]+|[Uu][Nn][Rr][Aa][Tt][Ee][Dd]).*)*$
+	    '''
+	], 
+
+
     # Formats for renamed files. Variations for with/without episode,
     # and with/without season number.
-    'filename_with_episode':
-     '%(seriesname)s - [%(seasonnumber)02dx%(episode)s] - %(episodename)s%(ext)s',
-    'filename_without_episode':
-     '%(seriesname)s - [%(seasonnumber)02dx%(episode)s]%(ext)s',
+    'tv_filename_with_episode':
+     '%(seriesname)s - [%(seasonnumber)02dx%(episode)s] - %(episodetitle)s%(extension)s',
+    'tv_filename_without_episode':
+     '%(seriesname)s - [%(seasonnumber)02dx%(episode)s]%(extension)s',
 
     # Seasonless filenames.
-    'filename_with_episode_no_season':
-      '%(seriesname)s - [%(episode)s] - %(episodename)s%(ext)s',
-    'filename_without_episode_no_season':
-     '%(seriesname)s - [%(episode)s]%(ext)s',
+    'tv_filename_with_episode_no_season':
+      '%(seriesname)s - [%(episode)s] - %(episodetitle)s%(extension)s',
+    'tv_filename_without_episode_no_season':
+     '%(seriesname)s - [%(episode)s]%(extension)s',
 
     # Date based filenames.
     # Series - [2012-01-24] - Ep name.ext
-    'filename_with_date_and_episode':
-     '%(seriesname)s - [%(episode)s] - %(episodename)s%(ext)s',
-    'filename_with_date_without_episode':
-     '%(seriesname)s - [%(episode)s]%(ext)s',
+    'tv_filename_with_date_and_episode':
+     '%(seriesname)s - [%(episode)s] - %(episodetitle)s%(extension)s',
+    'tv_filename_with_date_without_episode':
+     '%(seriesname)s - [%(episode)s]%(extension)s',
 
     # Anime filenames.
     # [AGroup] Series - 02 - Some Ep Name [CRC1234].ext
     # [AGroup] Series - 02 [CRC1234].ext
-    'filename_anime_with_episode':
-     '[%(group)s] %(seriesname)s - %(episode)s - %(episodename)s [%(crc)s]%(ext)s',
+    'tv_filename_anime_with_episode':
+     '[%(group)s] %(seriesname)s - %(episode)s - %(episodetitle)s [%(crc)s]%(extension)s',
 
-    'filename_anime_without_episode':
-     '[%(group)s] %(seriesname)s - %(episode)s [%(crc)s]%(ext)s',
+    'tv_filename_anime_without_episode':
+     '[%(group)s] %(seriesname)s - %(episode)s [%(crc)s]%(extension)s',
 
     # Same, without CRC value
-    'filename_anime_with_episode_without_crc':
-     '[%(group)s] %(seriesname)s - %(episode)s - %(episodename)s%(ext)s',
+    'tv_filename_anime_with_episode_without_crc':
+     '[%(group)s] %(seriesname)s - %(episode)s - %(episodetitle)s%(extension)s',
 
-    'filename_anime_without_episode_without_crc':
-     '[%(group)s] %(seriesname)s - %(episode)s%(ext)s',
+    'tv_filename_anime_without_episode_without_crc':
+     '[%(group)s] %(seriesname)s - %(episode)s%(extension)s',
 
 
+    # Movie Filename
+    'movie_filename_resolution':
+     '%(movietitle)s (%(releasedate)s) [%(resolution)s]%(extension)s',
+    
+    'movie_filename':
+     '%(movietitle)s (%(releasedate)s)%(extension)s',
+
+    'movie_filename_resolution_part':
+     '%(movietitle)s (%(releasedate)s) [%(resolution)s] %(part)s%(extension)s',
+    
+    'movie_filename_part':
+     '%(movietitle)s (%(releasedate)s) %(part)s%(extension)s',
 
     # Used to join multiple episode names together
     'multiep_join_name_with': ', ',
 
     # Format for numbers (python string format), %02d does 2-digit
     # padding, %d will cause no padding
-    'episode_single': '%02d',
+    'episode_single': '%s',
 
     # String to join multiple number
-    'episode_separator': '-',
+    'episode_separator': ',',
     
-    # Series ID to use instead of searching if the value is set
-    #'series_id': None,
+    'genre_single': '%s',
+    'genre_separator': ',',
+    
+    # force tmdb/tvdb ID to use instead of searching if the value is set
+    'force_id': None,
     
     # Forced Name to use
-    #'forced_name': None,
+    'forced_name': None,
     
     # replace series names before/after passing to TVDB
     # input replacements are regular expressions for the series as parsed from
     # filenames, for instance adding or removing the year, or expanding abbreviations
-    'input_series_replacements': {},
+    'input_name_replacements': {},
     
     # output replacements are for transforms of the TVDB series names
     # since these are perfectly predictable, they are simple strings
     # not regular expressions
-    'output_series_replacements': {},
+    'output_name_replacements': {},
+
 }

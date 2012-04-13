@@ -28,6 +28,12 @@ class InvalidFilename(BaseTvnamerException):
     pass
 
 
+class InvalidMatch(BaseTvnamerException):
+    """Raised when a match is not compatible with an info class
+    """
+    pass
+
+
 class UserAbort(BaseTvnamerException):
     """Base exception for config errors
     """
@@ -41,7 +47,7 @@ class BaseConfigError(BaseTvnamerException):
 
 
 class ConfigValueError(BaseConfigError):
-    """Raised if the config file is malformed or unreadable
+    """Raised if the config value is malformed or unreadable
     """
     pass
 
@@ -50,7 +56,12 @@ class DataRetrievalError(BaseTvnamerException):
     """Raised when an error (such as a network problem) prevents tvnamer
     from being able to retrieve data such as episode name
     """
+    pass
 
+class MatchingDataNotFound(DataRetrievalError):
+    """Raised when a matching show/movie cannot be found
+    """
+    pass
 
 class ShowNotFound(DataRetrievalError):
     """Raised when a show cannot be found

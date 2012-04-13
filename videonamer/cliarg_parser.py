@@ -68,8 +68,13 @@ def getCommandlineParser(defaults):
 
     # Misc
     with Group(parser, "Misc") as g:
+        g.add_option("-t", "--type", action="store", dest="media_type", choices=("movie", "tv"),  help = "Specifies the media type to parse, choices are: tv, movie")
+
         g.add_option("-r", "--recursive", action="store_true", dest = "recursive", help = "Descend more than one level directories supplied as arguments")
         g.add_option("--not-recursive", action="store_false", dest = "recursive", help = "Only descend one level into directories")
+
+        g.add_option("-l", "--library", action="store_true", dest = "library", help = "Treat directories supplied as arguments as single-movie directories in a library to be named accordingly")
+        g.add_option("--not-library", action="store_false", dest = "recursive", help = "Only descend one level into directories")
 
         g.add_option("-m", "--move", action="store_true", dest="move_files_enable", help = "Move files to destination specified in config or with --movedestination argument")
         g.add_option("--not-move", action="store_false", dest="move_files_enable", help = "Files will remain in current directory")

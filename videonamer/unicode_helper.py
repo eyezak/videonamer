@@ -5,15 +5,34 @@
 
 import sys
 
-
 def unicodify(obj, encoding = "utf-8"):
     if isinstance(obj, basestring):
         if not isinstance(obj, unicode):
             obj = unicode(obj, encoding)
+    else:
+        try:
+            iter(obj)
+        except TypeError:
+            pass
+        else:
+            obj = type(obj)((unicodify(item, encoding=encoding) for item in obj))
+    return obj
+
+def unidecodify(obj):
+    if isinstance(obj, basestring):
+        if not isinstance(obj, str):
+            obj = obj.__str__()
+    else:
+        try:
+            iter(obj)
+        except TypeError:
+            pass
+        else:
+            obj = type(obj)((unidecodify(item) for item in obj))
     return obj
 
 
-def p(*args, **kw):
+def _p(*args, **kw):
     """Rough implementation of the Python 3 print function,
     http://www.python.org/dev/peps/pep-3105/
 
@@ -23,7 +42,6 @@ def p(*args, **kw):
     kw.setdefault('encoding', 'utf-8')
     kw.setdefault('sep', ' ')
     kw.setdefault('end', '\n')
-    kw.setdefault('file', sys.stdout)
 
     new_args = []
     for x in args:
@@ -35,6 +53,16 @@ def p(*args, **kw):
             else:
                 new_args.append(x)
 
-    out = kw['sep'].join(new_args)
+    return kw['sep'].join(new_args) + kw['end']
 
-    kw['file'].write(out + kw['end'])
+
+def p(*args, **kw):
+    """Rough implementation of the Python 3 print function,
+    http://www.python.org/dev/peps/pep-3105/
+
+    def print(*args, sep=' ', end='\n', file=None)
+
+    """
+    kw.setdefault('file', sys.stdout)
+    
+    kw['file'].write(_p(*args, **kw))
