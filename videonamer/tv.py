@@ -4,8 +4,6 @@
 """
 __all__ = ('TvInfo',)
 
-import os, os.path
-import operator
 import re
 import logging
 import datetime
@@ -19,18 +17,15 @@ from tvdb_api import (Tvdb, BaseUI,
                       tvdb_attributenotfound)
 
 from config import Config
-from utils import (replaceOutputName,
-                   cleanRegexedName,
+from utils import (cleanRegexedName,
                    replaceInputName,
-                   makeValidFilename,
-                   TextToNumber,
                    formatEpisodeName,
                    formatEpisodeNumbers,
                    handleYear)
 from tvnamer_exceptions import (ShowNotFound, EpisodeNotFound,
                                 SeasonNotFound, EpisodeNameNotFound,
                                 DataRetrievalError,
-                                ConfigValueError, InvalidMatch,
+                                ConfigValueError,
                                 UserAbort,
                                 MatchingDataNotFound)
 from info import BaseInfo
@@ -40,7 +35,7 @@ log = logging.getLogger(__name__)
 
 def tv_formatter(tv):
     return "{0} ({1})".format(tv.title.encode("UTF-8", "ignore"),
-                              release_date(tv))
+                              tv.releasedate)
 
 class TvdbSelector(BaseUI):
     

@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 class TextToNumber(object):
-    __numwords = {
+    numwords = {
                 "one":   (1, 1),
                 "two":   (1, 2),
                 "three": (1, 3),
@@ -49,12 +49,12 @@ class TextToNumber(object):
                 "trillion":   (1, 10**6)
                }
     
-    pattern = '|'.join(__numwords)
+    pattern = '|'.join(numwords)
     
     def __new__(cls, words):
         result = current = 0      
         for word in words:
-            scale, increment = cls.__numwords[word.lower()]
+            scale, increment = cls.numwords[word.lower()]
             current = current * scale + increment
             if scale > 100:
                 result += current

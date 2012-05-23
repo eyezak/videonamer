@@ -111,7 +111,7 @@ defaults = {
     # - %(seasonnumber)d
     # - %(episodenumbers)s (Note: this is a string, formatted with config
     #                       variable episode_single and joined with episode_separator)
-    'tv_dirname': '%(seriesname)/Season %(seasonnumber)d',
+    'tv_dirname': '%(seriesname)s/Season %(seasonnumber)d',
 
     # Use Python's string formatting to add dynamic paths. Available variables:
     # - %(seriesname)s
@@ -406,8 +406,8 @@ defaults = {
     # Patterns to parse input files for movies
     "movie_patterns": [
 	    '''^(?i)
-	    (?P<movietitle>.+)[ \.+\-_]                               # movie title
-	    (?P<rdsep>[\(\[])?                                        # padding
+	    (?P<movietitle>.+)                                        # movie title
+	    (?:[ \.+\-_]|[ \.+\-_](?P<rdsep>[\(\[])?)                   # padding
 	    (?P<releasedate>(?:20(?:0[0-9]|1[0-3])|1[0-9]{3}))          # releasedate
 	    (?(rdsep)[\)\]])[ \.+\-_]                               # padding
 	    (?P<rsep>[\(\[])?                                         # padding
@@ -504,7 +504,7 @@ defaults = {
 
     # Format for numbers (python string format), %02d does 2-digit
     # padding, %d will cause no padding
-    'episode_single': '%s',
+    'episode_single': '%02d',
 
     # String to join multiple number
     'episode_separator': ',',

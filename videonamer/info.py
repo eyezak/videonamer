@@ -10,8 +10,7 @@ from config import Config
 from parser import FileParser
 from utils import (applyCustomOutputReplacements,
                    applyCustomFullpathReplacements,
-                   makeValidFilename,
-                   applyCustomInputReplacements)
+                   makeValidFilename)
 
 log = logging.getLogger(__name__)
 #log.setLevel(logging.DEBUG)
@@ -90,11 +89,11 @@ class BaseInfo(object):
 
     @property
     def fullpath(self):
-        return os.path.join(self.filepath, self.filename)
+        return os.path.join(self.filepath, self.filename + self.extension)
 
     @property
     def fullfilename(self):
-        return u''.join((self.filename, self.extension))
+        return self.filename + self.extension
 
     def generate_filename(self):
         if self.is_dir:
@@ -109,7 +108,10 @@ class BaseInfo(object):
         except KeyError:
             raise NotImplementedError(key)
 
-        fname = formatstr % self.__dict__
+        try:
+            fname = formatstr % self.__dict__
+        except KeyError, e:
+            raise ConfigValueError("Invalid format variable %s in %s" % (e.message, key))
 
         if Config['lowercase_filename']:
             fname = fname.lower()
@@ -148,5 +150,6 @@ class BaseInfo(object):
         return dirname
     
     def generate_path(self):
-        return os.path.join(Config[self._destination_key], 
-                            self.generate_dirname()) 
+        path = os.path.join(Config[self._destination_key], 
+                            self.generate_dirname())
+        return os.path.abspath(path)

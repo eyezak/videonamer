@@ -4,7 +4,6 @@
 """
 __all__ = ('MovieInfo',)
 
-import os, os.path
 import operator
 import re
 import logging
@@ -24,7 +23,6 @@ from tvnamer_exceptions import (ShowNotFound,
                                 InvalidMatch,
                                 MatchingDataNotFound)
 from info import BaseInfo
-from parser import FileParser
 from selector import ConsoleSelector
 
 log = logging.getLogger(__name__)
@@ -154,7 +152,6 @@ class MovieInfo(BaseInfo):
                 raise ShowNotFound("Movie #%d not found on themoviedb.com" % uid)
 
         else:
-            movies = []
             queryend = "+%d" % self.releasedate if self.releasedate else ""
 
             query = "%s%s" % (force_name or self.movietitle, queryend)

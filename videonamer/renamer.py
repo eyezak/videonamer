@@ -32,7 +32,7 @@ def rename_file(old_path, new_name, force=False):
                           "not forcefully renaming %s"
                           % (newpath, old_path))
 
-    getattr(log, "info" if test_mode else "debug")(
+    getattr(log, "info" if test_mode or Config['select_first'] else "debug")(
              "Renaming:\n   ** %s\n   => %s" % (old_path, newpath))
     if not test_mode:
         os.rename(old_path, newpath)
@@ -84,13 +84,13 @@ def rename_path(old_path, new_path=None, new_fullpath=None, force=False,
         new_fullpath = applyCustomFullpathReplacements(new_fullpath)
         new_dir = os.path.dirname(new_fullpath)
 
-    getattr(log, "info" if test_mode else "debug")(
+    getattr(log, "info" if test_mode or Config['select_first'] else "debug")(
              "Moving:\n   ** %s\n   => %s" % (old_path, new_fullpath))
     if test_mode:
         return new_fullpath
 
     if create_dirs:
-        p("Creating directory %s" % new_dir)
+        log.debug("Creating directory %s" % new_dir)
         try:
             os.makedirs(new_dir)
         except OSError, e:
@@ -107,19 +107,19 @@ def rename_path(old_path, new_path=None, new_fullpath=None, force=False,
     if same_partition(old_path, new_dir):
         if always_copy:
             # Same partition, but forced to copy
-            p("copy %s to %s" % (old_path, new_fullpath))
+            log.debug("copy %s to %s" % (old_path, new_fullpath))
             shutil.copyfile(old_path, new_fullpath)
         else:
             # Same partition, just rename the file to move it
-            p("move %s to %s" % (old_path, new_fullpath))
+            log.debug("move %s to %s" % (old_path, new_fullpath))
             os.rename(old_path, new_fullpath)
     else:
         # File is on different partition (different disc), copy it
-        p("copy %s to %s" % (old_path, new_fullpath))
+        log.debug("copy %s to %s" % (old_path, new_fullpath))
         shutil.copyfile(old_path, new_fullpath)
         if always_move:
             # Forced to move file, we just trash old file
-            p("Deleting %s" % (old_path))
+            log.debug("Deleting %s" % (old_path))
             delete_file(old_path)
 
     return new_fullpath

@@ -21,7 +21,6 @@ import tmdb3
 import cliarg_parser
 from config_defaults import defaults
 
-from unicode_helper import p
 from config import Config
 from finder import FileFinder
 import renamer
@@ -34,7 +33,7 @@ EpisodeNameNotFound, UserAbort, InvalidMatch, NoValidFilesFoundError,
 InvalidFilename, DataRetrievalError)
 
 log = logging.getLogger(__name__)
-#log.setLevel(logging.DEBUG)
+#log.setLevel(logging.WARN)
 
 def doRenameFile(path, newName):
     """Renames the file. path should be the original path,
@@ -71,7 +70,10 @@ def doMoveFile(path, destDir = None, destFilepath = None):
             force = Config['overwrite_destination_on_move'])
 
     except OSError, e:
-        log.exception(e)
+        if log.getEffectiveLevel() <= logging.DEBUG:
+            log.exception(e)
+        else:
+            log.error(e)
 
 
 def confirm(question, options, default = "y"):
@@ -89,11 +91,11 @@ def confirm(question, options, default = "y"):
     options_str = "/".join(options_str)
 
     while True:
-        p("%s (%s) " % (question, options_str), end="")
+        print "%s (%s) " % (question, options_str),
         try:
             ans = raw_input().strip()
         except KeyboardInterrupt, errormsg:
-            p("\n", errormsg)
+            print "\n", errormsg
             raise UserAbort(errormsg)
 
         if ans in options:
@@ -105,19 +107,14 @@ def confirm(question, options, default = "y"):
 def processFile(info):
     """Gets info name, prompts user for input
     """
+    log.debug ("Detected: %s from %s" % (info, info.fullfilename))
+    
     move_files_only = Config['move_files_only']
     move_files = Config['move_files_enable']
-    
-    log.debug ("Detected: %s from %s" % (info, info.fullfilename))
-
-    try:
-        info.populate_from_db(force_name=Config['force_name'], uid=Config['force_id'])
-    except (DataRetrievalError, ShowNotFound, SeasonNotFound,
-            EpisodeNotFound, EpisodeNameNotFound) as e:
-            #log.warn(e)
-            raise
-
     question = None
+    
+    info.populate_from_db(force_name=Config['force_name'], uid=Config['force_id'])
+
     if move_files_only:
         new_name = info.fullfilename
     else:
@@ -128,16 +125,20 @@ def processFile(info):
         log.debug("Existing filename is correct: %s" % info.fullfilename)
         if not move_files:
             return
-    #else:
-        #log.info("Old filename: %s" % info.fullfilename)
-        #log.info("New filename: %s" % new_name) 
     
     if move_files:
         new_path = info.generate_path()
         new_filepath = os.path.join(new_path, new_name)
-        
-        log.info("New path: %s" % new_path)
+        if new_filepath == info.fullpath:
+            log.debug("Existing filepath is correct: %s" % info.fullpath)
+            return
+
+        log.info("Old filename: %s" % info.fullfilename)        
+        log.info("New path: %s" % new_filepath)
         question = ("%s / Move" % question) if question is None else "Move"
+    else:
+        log.info("Old filename: %s" % info.fullfilename)
+        log.info("New filename: %s" % new_name) 
     
     if not Config['always_rename']:
         ans = confirm("%s?" % question,
@@ -173,17 +174,18 @@ def movienamer(paths):
     info_cls = BaseInfo.get_media_cls(Config['media_type'])
     file_finder = FileFinder(paths)
 
-    p('')
+    #print
     for filepath in file_finder:
         log.debug("Found Path: %s" % filepath)           
         for info_cls in BaseInfo.get_media_classes():
             try:
                 info = info_cls(filepath)
                 processFile(info)
-  
+
             except (InvalidFilename, InvalidMatch,
                     ShowNotFound, SeasonNotFound,
-                    EpisodeNotFound, EpisodeNameNotFound) as e:
+                    EpisodeNotFound, EpisodeNameNotFound,
+                    DataRetrievalError) as e:
                 
                 if log.getEffectiveLevel() <= logging.DEBUG:
                     log.debug(e, exc_info=True)
@@ -197,9 +199,11 @@ def movienamer(paths):
             if not Config['skip_file_on_error']:
                 break
             
-            log.warn("Skipping file <%s>" % info.filename)
+            log.warn("Skipping file <%s>" % info.fullfilename)
+            #if log.getEffectiveLevel() > logging.WARNING:
+            #    continue
         
-        log.info('')
+        #print
 
     log.info("Done")
 
@@ -270,7 +274,7 @@ def main():
     # Show config argument
     if opts.showconfig:
         for k, v in opts.__dict__.items():
-            p(k, "=", str(v))
+            print k, "=", str(v)
         return
 
     # Update global config object
