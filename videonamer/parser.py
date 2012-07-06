@@ -39,10 +39,14 @@ class FileParser(object):
         """Takes episode_patterns from config, compiles them all
         into self.compiled_regexs
         """
+        substitutions = Config["common_patterns"]
         self.compiled_regexs = []
         for cpattern in Config[config_key]:
+            pattern = cpattern.format(**substitutions)
+            #print pattern
+            
             try:
-                cregex = re.compile(cpattern, re.VERBOSE)
+                cregex = re.compile(pattern, re.VERBOSE)
             except re.error, errormsg:
                 log.warn("Invalid episode_pattern (error: %s)\nPattern:\n%s"
                      % (errormsg, cpattern))

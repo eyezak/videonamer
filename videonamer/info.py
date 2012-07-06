@@ -13,7 +13,7 @@ from utils import (applyCustomOutputReplacements,
                    makeValidFilename)
 
 log = logging.getLogger(__name__)
-#log.setLevel(logging.DEBUG)
+log.setLevel(logging.DEBUG)
 
 class MetaBaseInfo(type):
     def __new__(mcls, clsname, bases, clsdict):
@@ -146,6 +146,7 @@ class BaseInfo(object):
             log.info("Before custom output replacements: %s" % dirname)
             dirname = applyCustomFullpathReplacements(dirname)
         
+        dirname = makeValidFilename(dirname, directory=True)
         log.debug("Generated path '%s' for %s" % (dirname, self))
         return dirname
     

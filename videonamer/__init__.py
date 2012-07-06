@@ -9,3 +9,5 @@ Uses data from www.thetvdb.com (via tvdb_api) to rename TV episode files from
 __version__ = (2, 2)
 __author__ = "dbr/Ben"
 
+from main import *
+

@@ -230,7 +230,7 @@ def cleanRegexedName(name):
     return name.strip()
 
 
-def makeValidFilename(value):
+def makeValidFilename(value, directory=False):
     """
     Takes a string and makes it into a valid filename.
 
@@ -277,14 +277,14 @@ def makeValidFilename(value):
     if sysname == 'Darwin':
         # : is technically allowed, but Finder will treat it as / and will
         # generally cause weird behaviour, so treat it as invalid.
-        blacklist = r"/:"
+        blacklist = r":" if directory else r"/:"
     elif sysname in ['Linux', 'FreeBSD']:
-        blacklist = r"/"
+        blacklist = r"" if directory else r"/"
     else:
         # platform.system docs say it could also return "Windows" or "Java".
         # Failsafe and use Windows sanitisation for Java, as it could be any
         # operating system.
-        blacklist = r"\/:*?\"<>|"
+        blacklist = r":*?\"<>|" if directory else r"\/:*?\"<>|"
 
     # Append custom blacklisted characters
     if custom_blacklist is not None:

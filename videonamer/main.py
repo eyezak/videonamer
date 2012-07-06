@@ -2,6 +2,7 @@
 
 """Main movienamer utility functionality
 """
+__all__ = ( 'init', 'run', )
 
 import os
 import sys
@@ -22,11 +23,11 @@ import cliarg_parser
 from config_defaults import defaults
 
 from config import Config
+import config_defaults
 from finder import FileFinder
 import renamer
 from info import BaseInfo
-from tv import TvInfo
-from movie import MovieInfo
+import tv, movie
 
 from tvnamer_exceptions import (ShowNotFound, SeasonNotFound, EpisodeNotFound,
 EpisodeNameNotFound, UserAbort, InvalidMatch, NoValidFilesFoundError,
@@ -165,7 +166,7 @@ def processFile(info):
     else:
         doRenameFile(info.fullpath, new_name)
 
-def movienamer(paths):
+def run(paths):
     """Main movienamer function, takes an array of paths, does stuff.
     """
 
@@ -208,49 +209,67 @@ def movienamer(paths):
     log.info("Done")
 
 
-def main():
-    """Parses command line arguments, displays errors from movienamer in terminal
-    """
-    tmdb3.set_key('c27cb71cff5bd76e1a7a009380562c62') #MythTV API Key
-    tmdb3.DEBUG = True
-    
-    opter = cliarg_parser.getCommandlineParser(defaults)
-
-    opts, args = opter.parse_args()
-
-    if opts.verbose:
+def load_config(verbose=True, default_configuration=None):
+    if verbose:
         logging.basicConfig(
             level = logging.DEBUG,
             format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     else:
         logging.basicConfig()
-
-    # If a config is specified, load it, update the defaults using the loaded
-    # values, then reparse the options with the updated defaults.
-    default_configuration = os.path.expanduser("~/.videonamer.json")
-
-    if opts.loadconfig is not None:
-        # Command line overrides loading ~/.videonamer.json
-        configToLoad = opts.loadconfig
-    elif os.path.isfile(default_configuration):
+    
+    if default_configuration is None:
+        default_configuration = os.path.expanduser("~/.videonamer.json")
+    if os.path.isfile(default_configuration):
         # No --config arg, so load default config if it exists
         configToLoad = default_configuration
     else:
         # No arg, nothing at default config location, don't load anything
         configToLoad = None
-
+    
     if configToLoad is not None:
         log.info("Loading config: %s" % (configToLoad))
         try:
             loadedConfig = json.load(open(configToLoad))
         except ValueError, e:
             log.critical("Error loading config: %s" % e)
-            opter.exit(1)
-        else:
-            # Config loaded, update optparser's defaults and reparse
-            defaults.update(loadedConfig)           
-            opter = cliarg_parser.getCommandlineParser(defaults)
-            opts, args = opter.parse_args()
+            sys.exit(1) 
+
+    return loadedConfig
+
+def process_config():
+    tmdb3.DEBUG = Config['verbose']
+    
+    # Process values
+    if Config['batch']:
+        Config['always_rename'] = True
+        Config['select_first'] = True
+    if Config["move_files_only"] and not Config["move_files_enable"]:
+        log.critical("Parameter move_files_enable cannot be set to false while parameter move_only is set to true.")
+        sys.exit(1)
+    if Config['move_files_enable'] and Config['library']:
+        log.critical("Parameters move_files_enabled and library cannot both be true.")
+        sys.exit(1)
+
+    for key in ('movie_destination', 'tv_destination'):
+        Config[key] = os.path.abspath(Config[key])
+
+
+
+def init(**kwds):
+    Config.update(cliarg_parser.getCommandlineParser(defaults).defaults)
+    Config.update(load_config())
+    Config.update(**kwds)
+    process_config()
+
+def main():
+    """Parses command line arguments, displays errors from movienamer in terminal
+    """
+    opter = cliarg_parser.getCommandlineParser(defaults)
+    opts, args = opter.parse_args()
+
+    defaults.update(load_config())           
+    opter = cliarg_parser.getCommandlineParser(defaults)
+    opts, args = opter.parse_args()
 
     # Decode args using filesystem encoding (done after config loading
     # as the args are reparsed when the config is loaded)
@@ -279,30 +298,20 @@ def main():
 
     # Update global config object
     Config.update(opts.__dict__)
-
-    # Process values
-    if Config['batch']:
-        Config['always_rename'] = True
-        Config['select_first'] = True
-    if Config["move_files_only"] and not Config["move_files_enable"]:
-        log.critical("Parameter move_files_enable cannot be set to false while parameter move_only is set to true.")
-        opter.exit(0)
-    if Config['move_files_enable'] and Config['library']:
-        log.critical("Parameters move_files_enabled and library cannot both be true.")
-        opter.exit(0)
-
-    for key in ('movie_destination', 'tv_destination'):
-        Config[key] = os.path.abspath(Config[key])
+    process_config()
 
     if len(args) == 0:
-        opter.error("No filenames or directories supplied")
-
+        log.error("No filenames or directories supplied")
+        sys.exit(1)
+    
     try:
-        movienamer(paths = sorted(args))
+        run(paths = sorted(args))
     except NoValidFilesFoundError:
         opter.error("No valid files were supplied")
     except UserAbort, errormsg:
         opter.error(errormsg)
+
+tmdb3.set_key('c27cb71cff5bd76e1a7a009380562c62') #MythTV API Key
 
 if __name__ == '__main__':
     main()
